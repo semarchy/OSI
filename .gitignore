@@ -1,2 +1,8 @@
 **/__pycache__/
 **/.venv/
+.metadata/**
+**/.classpath
+**/.project
+**/.settings
+**/bin
+**/target
