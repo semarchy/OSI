@@ -18,7 +18,10 @@ references under `references/`, …), plus a root `Model` object. Import walks t
 tree recursively (accepting `.seml`, `.yaml`, `.yml`), takes the model name from
 the `Model` object, and resolves the fully-qualified references Semarchy uses
 (`Pkg.entities.Item.Item.UPC`) down to local names. The OSI side is a single
-YAML document. Export writes a flat directory of `<Name>.<Type>.seml` files.
+YAML document. Export writes the same native tree — a root `Model` object,
+`entities/<Name>/<Name>.Entity.seml`, `entities/<Name>/unique_keys/…`, and
+`references/<Name>.Reference.seml`, with fully-qualified references regenerated —
+so the output re-imports cleanly (verified on the real ProductRetail model).
 
 ## Install & build
 

@@ -1,11 +1,12 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { dirname, join, resolve } from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
 import { osiDocumentToSemarchy, osiToSemarchy } from "../src/osi-to-semarchy.js";
 import { semarchyToOsi } from "../src/semarchy-to-osi.js";
-import { readSemarchyDir } from "../src/io.js";
+import { readSemarchyDir, writeSemarchyDir } from "../src/io.js";
 import { validateOsi, validateSemarchy } from "../src/validation.js";
 import type { OSIDocument } from "../src/osi-types.js";
 
@@ -85,7 +86,7 @@ describe("roundtrip Semarchy -> OSI -> Semarchy", () => {
       original.references.map((r) => r._name),
     );
     const localName = (fqn: string) => fqn.split(".").pop();
-    expect(roundtripped.uniqueKeys.map((u) => u.entity)).toEqual(
+    expect(roundtripped.uniqueKeys.map((u) => localName(u.entity))).toEqual(
       original.uniqueKeys.map((u) => localName(u.entity)),
     );
 
@@ -99,5 +100,34 @@ describe("roundtrip Semarchy -> OSI -> Semarchy", () => {
 
     // The roundtripped Semarchy model still validates.
     expect(validateSemarchy(roundtripped).valid).toBe(true);
+  });
+});
+
+describe("export writes a re-importable Semarchy directory tree", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "osi-semarchy-"));
+  afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it("emits a Model object, nested entities/, and references/ that re-import", () => {
+    const original = readSemarchyDir(FIXTURE_DIR);
+    const { document } = semarchyToOsi(original);
+    const { model } = osiToSemarchy(document.semantic_model[0]!);
+
+    writeSemarchyDir(tmp, model);
+    const reread = readSemarchyDir(tmp);
+
+    // The Model object round-trips (its _name is the OSI model name).
+    expect(reread.name).toBe(document.semantic_model[0]!.name);
+    expect(reread.entities.map((e) => e._name).sort()).toEqual(
+      original.entities.map((e) => e._name).sort(),
+    );
+    expect(reread.references.map((r) => r._name)).toEqual(
+      original.references.map((r) => r._name),
+    );
+    // FQN references survive: the reference resolves back to a relationship.
+    const { document: reDoc } = semarchyToOsi(reread);
+    expect(reDoc.semantic_model[0]!.relationships?.map((r) => `${r.from}->${r.to}`)).toEqual(
+      document.semantic_model[0]!.relationships?.map((r) => `${r.from}->${r.to}`),
+    );
+    expect(validateOsi(reDoc).valid).toBe(true);
   });
 });

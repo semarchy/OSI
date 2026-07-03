@@ -92,16 +92,37 @@ export function readSemarchyDir(
   };
 }
 
-/** Write a Semarchy model to a directory, one `.seml` file per object. */
+/** Last dot-separated segment of a Semarchy fully-qualified name. */
+function localName(fqn: string): string {
+  const parts = fqn.split(".");
+  return parts[parts.length - 1] ?? fqn;
+}
+
+function writeObject(dir: string, obj: SemarchyObject): void {
+  mkdirSync(dir, { recursive: true });
+  const file = `${obj._name ?? "unnamed"}.${obj._type}.seml`;
+  writeFileSync(join(dir, file), stringifyYaml(obj));
+}
+
+/**
+ * Write a Semarchy model to a directory tree mirroring the native layout:
+ *   <pkg>.Model.seml
+ *   entities/<Name>/<Name>.Entity.seml
+ *   entities/<Name>/unique_keys/<Name>.UniqueKey.seml
+ *   references/<Name>.Reference.seml
+ */
 export function writeSemarchyDir(dir: string, model: SemarchyModel): void {
   mkdirSync(dir, { recursive: true });
-  const objects: SemarchyObject[] = [
-    ...model.entities,
-    ...model.uniqueKeys,
-    ...model.references,
-  ];
-  for (const obj of objects) {
-    const name = `${obj._name ?? "unnamed"}.${obj._type}.seml`;
-    writeFileSync(join(dir, name), stringifyYaml(obj));
+  if (model.modelObject) writeObject(dir, model.modelObject);
+
+  for (const entity of model.entities) {
+    writeObject(join(dir, "entities", entity._name), entity);
+  }
+  for (const uk of model.uniqueKeys) {
+    const entity = localName(uk.entity);
+    writeObject(join(dir, "entities", entity, "unique_keys"), uk);
+  }
+  for (const ref of model.references) {
+    writeObject(join(dir, "references"), ref);
   }
 }

@@ -140,6 +140,8 @@ export interface SemarchyModel {
   name: string;
   /** Root package (from the `Model` object), used to qualify sources. */
   pkg: string;
+  /** Root `Model` object (present on export; optional on import). */
+  modelObject?: SemarchyModelObject;
   entities: SemarchyEntity[];
   references: SemarchyReference[];
   uniqueKeys: SemarchyUniqueKey[];

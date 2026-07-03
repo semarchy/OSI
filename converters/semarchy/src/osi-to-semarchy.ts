@@ -20,6 +20,7 @@ import type {
   SemarchyEntity,
   SemarchyEntityAttribute,
   SemarchyModel,
+  SemarchyModelObject,
   SemarchyReference,
   SemarchyUniqueKey,
 } from "./semarchy-types.js";
@@ -27,6 +28,20 @@ import type {
 export interface ExportResult {
   model: SemarchyModel;
   warnings: string[];
+}
+
+// --- Fully-qualified name helpers (mirror Semarchy's FQN conventions) ---
+/** Package of an entity: `<pkg>.entities.<Entity>`. */
+function entityPackage(pkg: string, entity: string): string {
+  return `${pkg}.entities.${entity}`;
+}
+/** FQN of an entity: `<pkg>.entities.<Entity>.<Entity>`. */
+function entityFqn(pkg: string, entity: string): string {
+  return `${entityPackage(pkg, entity)}.${entity}`;
+}
+/** FQN of an attribute: `<pkg>.entities.<Entity>.<Entity>.<attr>`. */
+function attributeFqn(pkg: string, entity: string, attr: string): string {
+  return `${entityFqn(pkg, entity)}.${attr}`;
 }
 
 /** Semarchy `_name` pattern: ^[a-zA-Z][a-zA-Z_0-9]*$. */
@@ -81,11 +96,12 @@ function datasetToEntity(
   }
   // source is `db.schema.table`; the physical table name is the last segment.
   const table = dataset.source.split(".").pop() ?? dataset.name;
+  const name = logicalName(dataset.name, warnings, "entity");
 
   const entity: SemarchyEntity = {
     _type: "Entity",
-    _package: pkg,
-    _name: logicalName(dataset.name, warnings, "entity"),
+    _package: entityPackage(pkg, name),
+    _name: name,
     label: dataset.name,
     pluralLabel: `${dataset.name}s`,
     physicalTableName: physicalName(table),
@@ -104,7 +120,8 @@ function datasetToEntity(
           `(Semarchy uses a single primary-key attribute)`,
       );
     }
-    entity.primaryKey = logicalName(dataset.primary_key[0]!, warnings, "attribute");
+    const pk = logicalName(dataset.primary_key[0]!, warnings, "attribute");
+    entity.primaryKey = attributeFqn(pkg, name, pk);
   }
 
   return entity;
@@ -115,14 +132,15 @@ function uniqueKeysOf(
   pkg: string,
   warnings: string[],
 ): SemarchyUniqueKey[] {
+  const entity = logicalName(dataset.name, warnings, "entity");
   return (dataset.unique_keys ?? []).map((cols, i) => ({
     _type: "UniqueKey",
-    _package: pkg,
+    _package: entityPackage(pkg, entity),
     _name: logicalName(`${dataset.name}_uk${i + 1}`, warnings, "unique key"),
     label: `${dataset.name} unique key ${i + 1}`,
-    entity: logicalName(dataset.name, warnings, "entity"),
+    entity: entityFqn(pkg, entity),
     keyAttributes: cols.map((c) => ({
-      attribute: logicalName(c, warnings, "attribute"),
+      attribute: attributeFqn(pkg, entity, logicalName(c, warnings, "attribute")),
     })),
     validationLabel: `${dataset.name} unique key ${i + 1} must be unique`,
     validationScope: "NONE",
@@ -141,22 +159,32 @@ function relationshipToReference(
     );
   }
   const fromCol = rel.from_columns[0] ?? "REF";
+  const from = logicalName(rel.from, warnings, "entity");
+  const to = logicalName(rel.to, warnings, "entity");
+  const fkName = logicalName(fromCol, warnings, "attribute");
   return {
     _type: "Reference",
-    _package: pkg,
+    _package: `${pkg}.references`,
     _name: logicalName(rel.name, warnings, "reference"),
     label: rel.name,
     physicalName: physicalName(rel.name),
-    fromEntity: logicalName(rel.from, warnings, "entity"),
-    toEntity: logicalName(rel.to, warnings, "entity"),
+    fromEntity: entityFqn(pkg, from),
+    toEntity: entityFqn(pkg, to),
     fromRoleLabel: rel.from,
     fromRoleName: logicalName(rel.from, warnings, "role"),
     fromRolePluralLabel: `${rel.from}s`,
     toRoleLabel: rel.to,
-    toRoleName: logicalName(rel.to, warnings, "role"),
+    toRoleName: to,
     toRolePhysicalName: physicalName(fromCol),
     deletePropagation: "RESTRICT",
     validationScope: "NONE",
+    foreignAttribute: {
+      _type: "ForeignAttribute",
+      _name: fkName,
+      label: rel.to,
+      physicalName: physicalName(fromCol),
+      entity: entityFqn(pkg, from),
+    },
   };
 }
 
@@ -183,8 +211,16 @@ export function osiToSemarchy(
     );
   }
 
+  const modelObject: SemarchyModelObject = {
+    _type: "Model",
+    _package: pkg,
+    _name: pkg,
+    label: osi.name,
+    ...(osi.description ? { description: osi.description } : {}),
+  };
+
   return {
-    model: { name: osi.name, pkg, entities, references, uniqueKeys },
+    model: { name: osi.name, pkg, modelObject, entities, references, uniqueKeys },
     warnings,
   };
 }
