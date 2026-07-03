@@ -56,6 +56,7 @@ export function validateSemarchy(model: SemarchyModel): ValidationOutcome {
     ...model.entities,
     ...model.uniqueKeys,
     ...model.references,
+    ...model.enrichers,
   ];
   for (const obj of objects) {
     const schema = loadSchema(join(SCHEMAS_DIR, `${obj._type}.json`));

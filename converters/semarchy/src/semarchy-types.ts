@@ -124,6 +124,29 @@ export interface SemarchyReference {
   [key: string]: unknown;
 }
 
+export interface SemarchyEnricherExpression {
+  /** Name of the entity attribute that takes the value of `expression`. */
+  attributeName: string;
+  /** SemQL expression computing the attribute value. */
+  expression: string;
+}
+
+/** A SemQL enricher: computes attribute values from SemQL expressions. */
+export interface SemarchyEnricher {
+  _type: "SemQLEnricher";
+  _package: string;
+  _name: string;
+  label: string;
+  /** Fully-qualified reference to the enriched entity. */
+  entity: string;
+  enricherExecutionScope: "NONE" | "POST_CONSO" | "PRE_CONSO" | "PRE_POST";
+  semQlEnricherExpressions: SemarchyEnricherExpression[];
+  /** Optional SemQL filter restricting enriched records (no OSI equivalent). */
+  condition?: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
 /** Any typed Semarchy object, discriminated by `_type`. */
 export type SemarchyObject =
   | SemarchyEntity
@@ -145,4 +168,5 @@ export interface SemarchyModel {
   entities: SemarchyEntity[];
   references: SemarchyReference[];
   uniqueKeys: SemarchyUniqueKey[];
+  enrichers: SemarchyEnricher[];
 }

@@ -73,6 +73,45 @@ describe("import Semarchy -> OSI", () => {
   });
 });
 
+describe("SemQL enricher <-> computed field", () => {
+  it("import adds a SEMARCHY dialect to the enriched field, keeping ANSI_SQL", () => {
+    const warnings: string[] = [];
+    const model = readSemarchyDir(FIXTURE_DIR, warnings);
+    const { document } = semarchyToOsi(model, warnings);
+
+    const fullName = document.semantic_model[0]!.datasets
+      .find((d) => d.name === "Customer")!
+      .fields!.find((f) => f.name === "fullName")!;
+    const byDialect = Object.fromEntries(
+      fullName.expression.dialects.map((d) => [d.dialect, d.expression]),
+    );
+    expect(byDialect.ANSI_SQL).toBe("FULL_NAME"); // physical column preserved
+    expect(byDialect.SEMARCHY).toBe("UPPER(fullName)"); // SemQL computation
+
+    // The enricher-level condition has no OSI equivalent and is dropped.
+    expect(warnings.some((w) => w.includes("SemQL condition"))).toBe(true);
+  });
+
+  it("export regenerates a SemQLEnricher from the computed field", () => {
+    const model = readSemarchyDir(FIXTURE_DIR);
+    const { document } = semarchyToOsi(model);
+    const { model: exported } = osiToSemarchy(document.semantic_model[0]!);
+
+    expect(exported.enrichers).toHaveLength(1);
+    const enricher = exported.enrichers[0]!;
+    expect(enricher.entity).toBe("retail.entities.Customer.Customer");
+    expect(enricher.semQlEnricherExpressions).toEqual([
+      { attributeName: "fullName", expression: "UPPER(fullName)" },
+    ]);
+    // The enriched attribute keeps its physical column (not the SemQL).
+    const customer = exported.entities.find((e) => e._name === "Customer")!;
+    expect(customer.attributes.find((a) => a._name === "fullName")!.physicalName).toBe(
+      "FULL_NAME",
+    );
+    expect(validateSemarchy(exported).valid).toBe(true);
+  });
+});
+
 describe("roundtrip Semarchy -> OSI -> Semarchy", () => {
   it("preserves the core ER structure (entities, references, unique keys)", () => {
     const original = readSemarchyDir(FIXTURE_DIR);

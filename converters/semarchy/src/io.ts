@@ -20,6 +20,7 @@ import {
 import { join } from "node:path";
 import { parseAllDocuments, stringify as stringifyYaml } from "yaml";
 import type {
+  SemarchyEnricher,
   SemarchyEntity,
   SemarchyModel,
   SemarchyModelObject,
@@ -27,9 +28,6 @@ import type {
   SemarchyReference,
   SemarchyUniqueKey,
 } from "./semarchy-types.js";
-
-/** Semarchy object types this converter maps; all others are dropped on read. */
-const MAPPED_TYPES = new Set(["Entity", "Reference", "UniqueKey"]);
 /** Types consumed as model metadata (not mapped, but not warned about). */
 const META_TYPES = new Set(["Model"]);
 const MODEL_FILE_RE = /\.(seml|ya?ml)$/i;
@@ -56,6 +54,7 @@ export function readSemarchyDir(
   const entities: SemarchyEntity[] = [];
   const references: SemarchyReference[] = [];
   const uniqueKeys: SemarchyUniqueKey[] = [];
+  const enrichers: SemarchyEnricher[] = [];
   let modelObj: SemarchyModelObject | undefined;
 
   for (const file of walk(dir)) {
@@ -68,6 +67,7 @@ export function readSemarchyDir(
       if (type === "Entity") entities.push(obj as SemarchyEntity);
       else if (type === "Reference") references.push(obj as SemarchyReference);
       else if (type === "UniqueKey") uniqueKeys.push(obj as SemarchyUniqueKey);
+      else if (type === "SemQLEnricher") enrichers.push(obj as SemarchyEnricher);
       else if (type === "Model") modelObj = obj as SemarchyModelObject;
       else if (!META_TYPES.has(type)) {
         warnings.push(
@@ -89,6 +89,7 @@ export function readSemarchyDir(
     entities,
     references,
     uniqueKeys,
+    enrichers,
   };
 }
 
@@ -121,6 +122,10 @@ export function writeSemarchyDir(dir: string, model: SemarchyModel): void {
   for (const uk of model.uniqueKeys) {
     const entity = localName(uk.entity);
     writeObject(join(dir, "entities", entity, "unique_keys"), uk);
+  }
+  for (const enricher of model.enrichers) {
+    const entity = localName(enricher.entity);
+    writeObject(join(dir, "entities", entity, "enrichers"), enricher);
   }
   for (const ref of model.references) {
     writeObject(join(dir, "references"), ref);

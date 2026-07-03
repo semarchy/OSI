@@ -8,7 +8,6 @@
  * are filled with sensible defaults so the output validates against the
  * Semarchy schemas.
  */
-import { selectExpression } from "./dialect.js";
 import type {
   OSIDataset,
   OSIDocument,
@@ -17,6 +16,7 @@ import type {
   OSISemanticModel,
 } from "./osi-types.js";
 import type {
+  SemarchyEnricher,
   SemarchyEntity,
   SemarchyEntityAttribute,
   SemarchyModel,
@@ -64,14 +64,19 @@ function dataTypeOf(field: OSIField): string {
   return field.dimension?.is_time ? "Timestamp" : "String";
 }
 
+/** The expression for a given dialect on a field, if present. */
+function dialectExpression(field: OSIField, dialect: string): string | undefined {
+  return field.expression.dialects.find((d) => d.dialect === dialect)?.expression;
+}
+
 function fieldToAttribute(
   field: OSIField,
   warnings: string[],
 ): SemarchyEntityAttribute {
-  // The physical column comes from the selected expression when it is a bare
-  // column reference; otherwise fall back to the field name.
-  const sel = selectExpression(field.expression, `field ${field.name}`, warnings);
-  const column = sel?.expression ?? field.name;
+  // The physical column is the ANSI_SQL (column-reference) expression, NOT the
+  // SEMARCHY one — a SEMARCHY expression is a SemQL computation and becomes an
+  // enricher, not a physical column name.
+  const column = dialectExpression(field, "ANSI_SQL") ?? field.name;
   return {
     _type: "EntityAttribute",
     _name: logicalName(field.name, warnings, "attribute"),
@@ -188,6 +193,36 @@ function relationshipToReference(
   };
 }
 
+/**
+ * Build a SemQL enricher for a dataset from its computed fields — those that
+ * carry a SEMARCHY dialect expression. Returns undefined when there are none.
+ */
+function enricherFor(
+  dataset: OSIDataset,
+  pkg: string,
+  warnings: string[],
+): SemarchyEnricher | undefined {
+  const expressions = (dataset.fields ?? [])
+    .map((f) => ({ f, semql: dialectExpression(f, "SEMARCHY") }))
+    .filter((x): x is { f: OSIField; semql: string } => x.semql !== undefined)
+    .map(({ f, semql }) => ({
+      attributeName: logicalName(f.name, warnings, "attribute"),
+      expression: semql,
+    }));
+  if (expressions.length === 0) return undefined;
+
+  const entity = logicalName(dataset.name, warnings, "entity");
+  return {
+    _type: "SemQLEnricher",
+    _package: entityPackage(pkg, entity),
+    _name: `${entity}Enricher`,
+    label: `${dataset.name} enricher`,
+    entity: entityFqn(pkg, entity),
+    enricherExecutionScope: "PRE_CONSO",
+    semQlEnricherExpressions: expressions,
+  };
+}
+
 /** Convert a single OSI semantic model to a grouped Semarchy model. */
 export function osiToSemarchy(
   osi: OSISemanticModel,
@@ -204,6 +239,9 @@ export function osiToSemarchy(
   const references = (osi.relationships ?? []).map((r) =>
     relationshipToReference(r, pkg, warnings),
   );
+  const enrichers = (osi.datasets ?? [])
+    .map((d) => enricherFor(d, pkg, warnings))
+    .filter((e): e is SemarchyEnricher => e !== undefined);
 
   for (const metric of osi.metrics ?? []) {
     warnings.push(
@@ -220,7 +258,15 @@ export function osiToSemarchy(
   };
 
   return {
-    model: { name: osi.name, pkg, modelObject, entities, references, uniqueKeys },
+    model: {
+      name: osi.name,
+      pkg,
+      modelObject,
+      entities,
+      references,
+      uniqueKeys,
+      enrichers,
+    },
     warnings,
   };
 }
