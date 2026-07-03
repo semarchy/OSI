@@ -101,4 +101,6 @@ java -jar target/osi-salesforce-converter-0.1.0-SNAPSHOT.jar toOSI|toSalesforce 
 
 Spec changes (`core-spec/`) follow a formal proposal → 7-day discussion → TSC vote process
 (see CONTRIBUTING.md); all other changes go through standard PR review. Keep spec edits to `spec.md`,
-`spec.yaml`, and `osi-schema.json` in sync.
+`spec.yaml`, and `osi-schema.json` in sync — and when the change affects the model shape, also update
+`python/src/osi/models.py` (the canonical Pydantic types the Python converters import) and any
+affected `examples/`, then re-run the validator on them.

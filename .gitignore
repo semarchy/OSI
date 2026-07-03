@@ -6,3 +6,4 @@
 **/.settings
 **/bin
 **/target
+.claude/settings.json
