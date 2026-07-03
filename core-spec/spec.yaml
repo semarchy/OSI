@@ -19,6 +19,7 @@ dialects:
   - "TABLEAU"               # Tableau
   - "DATABRICKS"            # Databricks SQL
   - "MAQL"                  # GoodData MAQL (Multi-Dimensional Analytical Query Language)
+  - "SEMARCHY"              # Semarchy semantic model expression language
 
 
 

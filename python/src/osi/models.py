@@ -14,6 +14,7 @@ class OSIDialect(str, Enum):
     MAQL = "MAQL"
     TABLEAU = "TABLEAU"
     DATABRICKS = "DATABRICKS"
+    SEMARCHY = "SEMARCHY"
 
 
 class OSIVendor(str, Enum):
