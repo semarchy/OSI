@@ -23,11 +23,17 @@ export type SemarchyBuiltInType =
   | "Timestamp"
   | "UUID";
 
-/** Data types Semarchy treats as time/temporal (drive OSI `dimension.is_time`). */
-export const TIME_DATA_TYPES: ReadonlySet<string> = new Set([
-  "Date",
-  "Timestamp",
-]);
+/**
+ * Data types Semarchy treats as time/temporal (drive OSI `dimension.is_time`).
+ * Real models use either PascalCase (`Date`) or SCREAMING_SNAKE (`DATE`), so
+ * detection is case-insensitive.
+ */
+const TIME_DATA_TYPES: ReadonlySet<string> = new Set(["DATE", "TIMESTAMP"]);
+
+/** True if a (possibly qualified) Semarchy data type is temporal. */
+export function isTimeDataType(dataType: string | undefined): boolean {
+  return dataType !== undefined && TIME_DATA_TYPES.has(dataType.toUpperCase());
+}
 
 export interface SemarchyEntityAttribute {
   _type: "EntityAttribute";
@@ -58,8 +64,21 @@ export interface SemarchyEntity {
   attributes: SemarchyEntityAttribute[];
   description?: string;
   documentation?: string;
-  /** `_name` of the attribute acting as primary key. */
+  /**
+   * Fully-qualified reference to the primary-key attribute, e.g.
+   * `Pkg.entities.Item.Item.UPC`; the attribute name is the last segment.
+   */
   primaryKey?: string;
+  [key: string]: unknown;
+}
+
+/** Root model object; carries the human model name. */
+export interface SemarchyModelObject {
+  _type: "Model";
+  _package: string;
+  _name: string;
+  label?: string;
+  description?: string;
   [key: string]: unknown;
 }
 
@@ -87,10 +106,12 @@ export interface SemarchyReference {
   _name: string;
   label: string;
   physicalName: string;
-  /** Many-side entity `_name`. */
+  /** Fully-qualified many-side entity reference (`Pkg.entities.X.X`). */
   fromEntity: string;
-  /** One-side entity `_name`. */
+  /** Fully-qualified one-side entity reference. */
   toEntity: string;
+  /** Foreign attribute on the many side; its `_name` is the FK column. */
+  foreignAttribute?: { _name?: string; physicalName?: string; [k: string]: unknown };
   fromRoleLabel: string;
   fromRoleName: string;
   fromRolePluralLabel: string;
@@ -112,9 +133,12 @@ export type SemarchyObject =
 
 /**
  * A Semarchy model as consumed/produced by this converter: the mapped objects
- * grouped by type, plus the package name shared by its objects.
+ * grouped by type, plus the model name/package (from the `Model` object).
  */
 export interface SemarchyModel {
+  /** Human/logical model name (from the `Model` object), used as the OSI name. */
+  name: string;
+  /** Root package (from the `Model` object), used to qualify sources. */
   pkg: string;
   entities: SemarchyEntity[];
   references: SemarchyReference[];

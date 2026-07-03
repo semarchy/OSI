@@ -18,12 +18,18 @@ import type {
   OSIRelationship,
   OSISemanticModel,
 } from "./osi-types.js";
-import { TIME_DATA_TYPES } from "./semarchy-types.js";
+import { isTimeDataType } from "./semarchy-types.js";
 import type {
   SemarchyEntity,
   SemarchyModel,
   SemarchyReference,
 } from "./semarchy-types.js";
+
+/** Last dot-separated segment of a Semarchy fully-qualified name. */
+function localName(fqn: string): string {
+  const parts = fqn.split(".");
+  return parts[parts.length - 1] ?? fqn;
+}
 
 export interface ImportResult {
   document: OSIDocument;
@@ -41,7 +47,7 @@ function attributeToField(
   if (attr.label) field.label = attr.label;
   const description = attr.description ?? attr.documentation;
   if (description) field.description = description;
-  if (TIME_DATA_TYPES.has(String(attr.dataType))) {
+  if (isTimeDataType(String(attr.dataType))) {
     field.dimension = { is_time: true };
   }
   return field;
@@ -53,17 +59,19 @@ function entityToDataset(
 ): OSIDataset {
   const dataset: OSIDataset = {
     name: entity._name,
-    source: `${entity._package}.${entity.physicalTableName}`,
+    // Qualify the physical table with the model's root package.
+    source: `${model.pkg}.${entity.physicalTableName}`,
     fields: entity.attributes.map((a) => attributeToField(a)),
   };
 
   const description = entity.description ?? entity.documentation;
   if (description) dataset.description = description;
-  if (entity.primaryKey) dataset.primary_key = [entity.primaryKey];
+  // primaryKey is a FQN (`Pkg.entities.X.X.attr`); take the attribute name.
+  if (entity.primaryKey) dataset.primary_key = [localName(entity.primaryKey)];
 
   const uniqueKeys = model.uniqueKeys
-    .filter((uk) => uk.entity === entity._name)
-    .map((uk) => uk.keyAttributes.map((k) => k.attribute));
+    .filter((uk) => localName(uk.entity) === entity._name)
+    .map((uk) => uk.keyAttributes.map((k) => localName(k.attribute)));
   if (uniqueKeys.length) dataset.unique_keys = uniqueKeys;
 
   return dataset;
@@ -74,8 +82,9 @@ function referenceToRelationship(
   entitiesByName: Map<string, SemarchyEntity>,
   warnings: string[],
 ): OSIRelationship | undefined {
-  const toEntity = entitiesByName.get(ref.toEntity);
-  const toColumn = toEntity?.primaryKey;
+  // fromEntity/toEntity are FQNs; resolve by local (last-segment) name.
+  const toEntity = entitiesByName.get(localName(ref.toEntity));
+  const toColumn = toEntity?.primaryKey && localName(toEntity.primaryKey);
   if (!toColumn) {
     warnings.push(
       `[drop] reference "${ref._name}": cannot resolve primary key of ` +
@@ -85,9 +94,7 @@ function referenceToRelationship(
   }
   // Semarchy expresses the FK implicitly; the foreign attribute on the many side
   // is the best available "from" column, else the role name.
-  const foreignAttr = (ref.foreignAttribute as { _name?: string } | undefined)
-    ?._name;
-  const fromColumn = foreignAttr ?? ref.toRoleName;
+  const fromColumn = ref.foreignAttribute?._name ?? ref.toRoleName;
   if (!fromColumn) {
     warnings.push(
       `[drop] reference "${ref._name}": cannot resolve foreign key column; ` +
@@ -99,8 +106,8 @@ function referenceToRelationship(
   // the join columns is dropped (accepted, per the minimal-scope decision).
   return {
     name: ref._name,
-    from: ref.fromEntity,
-    to: ref.toEntity,
+    from: localName(ref.fromEntity),
+    to: localName(ref.toEntity),
     from_columns: [fromColumn],
     to_columns: [toColumn],
   };
@@ -120,7 +127,7 @@ export function semarchyToOsi(
     .filter((r): r is OSIRelationship => r !== undefined);
 
   const semanticModel: OSISemanticModel = {
-    name: model.pkg,
+    name: model.name,
     datasets,
   };
   if (relationships.length) semanticModel.relationships = relationships;

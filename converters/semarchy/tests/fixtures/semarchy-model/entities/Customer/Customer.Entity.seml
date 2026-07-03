@@ -1,5 +1,5 @@
+_package: retail.entities.Customer
 _type: Entity
-_package: retail
 _name: Customer
 label: Customer
 pluralLabel: Customers
@@ -7,22 +7,22 @@ physicalTableName: CUSTOMER
 entityType: BASIC
 historizeGolden: false
 historizeMaster: false
-primaryKey: customerId
 description: A retail customer
+primaryKey: retail.entities.Customer.Customer.customerId
 attributes:
   - _type: EntityAttribute
     _name: customerId
     label: Customer ID
     physicalName: CUSTOMER_ID
-    dataType: Integer
+    dataType: INTEGER
   - _type: EntityAttribute
     _name: fullName
     label: Full Name
     physicalName: FULL_NAME
-    dataType: String
+    dataType: STRING
     description: Customer full name
   - _type: EntityAttribute
     _name: createdAt
     label: Created At
     physicalName: CREATED_AT
-    dataType: Timestamp
+    dataType: TIMESTAMP

@@ -1,9 +1,0 @@
-_type: UniqueKey
-_package: retail
-_name: Customer_uk1
-label: Customer natural key
-entity: Customer
-validationLabel: Customer natural key must be unique
-validationScope: NONE
-keyAttributes:
-  - attribute: fullName

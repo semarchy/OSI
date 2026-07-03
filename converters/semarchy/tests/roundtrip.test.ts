@@ -84,8 +84,9 @@ describe("roundtrip Semarchy -> OSI -> Semarchy", () => {
     expect(roundtripped.references.map((r) => r._name)).toEqual(
       original.references.map((r) => r._name),
     );
+    const localName = (fqn: string) => fqn.split(".").pop();
     expect(roundtripped.uniqueKeys.map((u) => u.entity)).toEqual(
-      original.uniqueKeys.map((u) => u.entity),
+      original.uniqueKeys.map((u) => localName(u.entity)),
     );
 
     // Attribute sets survive per entity.

@@ -1,10 +1,13 @@
 /**
- * Directory-of-YAML I/O for Semarchy models.
+ * Directory-tree I/O for Semarchy models.
  *
- * A Semarchy model is delivered as a directory of YAML files; each YAML
- * document is one `_type`-discriminated object. On read we group the mapped
- * object types into a `SemarchyModel` and warn about (drop) everything else.
- * On write we emit one YAML file per object, named `<_type>.<_name>.yaml`.
+ * A Semarchy model is a nested directory of `.seml` (YAML) files; each file is
+ * one `_type`-discriminated object (entities under `entities/<Name>/`,
+ * references under `references/`, etc.). We walk the tree recursively, group the
+ * mapped object types into a `SemarchyModel`, take the model name from the
+ * `Model` object, and warn about (drop) everything else.
+ *
+ * On write we emit one file per object, named `<_name>.<_type>.seml`.
  */
 import {
   existsSync,
@@ -19,6 +22,7 @@ import { parseAllDocuments, stringify as stringifyYaml } from "yaml";
 import type {
   SemarchyEntity,
   SemarchyModel,
+  SemarchyModelObject,
   SemarchyObject,
   SemarchyReference,
   SemarchyUniqueKey,
@@ -26,18 +30,25 @@ import type {
 
 /** Semarchy object types this converter maps; all others are dropped on read. */
 const MAPPED_TYPES = new Set(["Entity", "Reference", "UniqueKey"]);
+/** Types consumed as model metadata (not mapped, but not warned about). */
+const META_TYPES = new Set(["Model"]);
+const MODEL_FILE_RE = /\.(seml|ya?ml)$/i;
 
-function listYamlFiles(dir: string): string[] {
+/** Recursively collect model files under a directory. */
+function walk(dir: string): string[] {
   if (!existsSync(dir) || !statSync(dir).isDirectory()) {
     throw new Error(`not a directory: ${dir}`);
   }
-  return readdirSync(dir)
-    .filter((f) => /\.ya?ml$/i.test(f))
-    .sort()
-    .map((f) => join(dir, f));
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walk(full));
+    else if (MODEL_FILE_RE.test(entry.name)) out.push(full);
+  }
+  return out.sort();
 }
 
-/** Read a directory of Semarchy YAML objects into a grouped model. */
+/** Read a directory tree of Semarchy objects into a grouped model. */
 export function readSemarchyDir(
   dir: string,
   warnings: string[] = [],
@@ -45,45 +56,43 @@ export function readSemarchyDir(
   const entities: SemarchyEntity[] = [];
   const references: SemarchyReference[] = [];
   const uniqueKeys: SemarchyUniqueKey[] = [];
-  const packages = new Set<string>();
+  let modelObj: SemarchyModelObject | undefined;
 
-  for (const file of listYamlFiles(dir)) {
-    const docs = parseAllDocuments(readFileSync(file, "utf8"));
-    for (const doc of docs) {
+  for (const file of walk(dir)) {
+    for (const doc of parseAllDocuments(readFileSync(file, "utf8"))) {
       const obj = doc.toJSON() as SemarchyObject | null;
-      if (!obj || typeof obj !== "object" || !("_type" in obj)) continue;
+      if (!obj || typeof obj !== "object" || typeof obj._type !== "string") {
+        continue;
+      }
       const type = obj._type;
-      if (typeof obj._package === "string") packages.add(obj._package);
-      if (!MAPPED_TYPES.has(type)) {
+      if (type === "Entity") entities.push(obj as SemarchyEntity);
+      else if (type === "Reference") references.push(obj as SemarchyReference);
+      else if (type === "UniqueKey") uniqueKeys.push(obj as SemarchyUniqueKey);
+      else if (type === "Model") modelObj = obj as SemarchyModelObject;
+      else if (!META_TYPES.has(type)) {
         warnings.push(
           `[drop] unsupported Semarchy type "${type}"` +
             (obj._name ? ` (${obj._name})` : "") +
             ` in ${file}`,
         );
-        continue;
       }
-      if (type === "Entity") entities.push(obj as SemarchyEntity);
-      else if (type === "Reference") references.push(obj as SemarchyReference);
-      else if (type === "UniqueKey") uniqueKeys.push(obj as SemarchyUniqueKey);
     }
   }
 
-  if (packages.size > 1) {
-    warnings.push(
-      `[model] multiple packages found (${[...packages].join(", ")}); ` +
-        `using "${[...packages][0]}" as the model name`,
-    );
+  if (!modelObj) {
+    warnings.push(`[model] no Model object found in ${dir}; using "model"`);
   }
 
   return {
-    pkg: [...packages][0] ?? "model",
+    name: modelObj?._name ?? modelObj?.label ?? "model",
+    pkg: modelObj?._package ?? modelObj?._name ?? "model",
     entities,
     references,
     uniqueKeys,
   };
 }
 
-/** Write a Semarchy model to a directory, one YAML file per object. */
+/** Write a Semarchy model to a directory, one `.seml` file per object. */
 export function writeSemarchyDir(dir: string, model: SemarchyModel): void {
   mkdirSync(dir, { recursive: true });
   const objects: SemarchyObject[] = [
@@ -92,7 +101,7 @@ export function writeSemarchyDir(dir: string, model: SemarchyModel): void {
     ...model.references,
   ];
   for (const obj of objects) {
-    const name = `${obj._type}.${obj._name ?? "unnamed"}.yaml`;
+    const name = `${obj._name ?? "unnamed"}.${obj._type}.seml`;
     writeFileSync(join(dir, name), stringifyYaml(obj));
   }
 }

@@ -183,7 +183,10 @@ export function osiToSemarchy(
     );
   }
 
-  return { model: { pkg, entities, references, uniqueKeys }, warnings };
+  return {
+    model: { name: osi.name, pkg, entities, references, uniqueKeys },
+    warnings,
+  };
 }
 
 /** Convenience wrapper over a full OSI document (converts the first model). */

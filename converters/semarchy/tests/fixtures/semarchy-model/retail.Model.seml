@@ -1,0 +1,7 @@
+_type: Model
+_package: retail
+_name: retail
+label: Retail
+description: Retail demo model
+modelConfiguration:
+  type: POSTGRESQL
