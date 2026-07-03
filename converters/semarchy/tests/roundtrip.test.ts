@@ -73,8 +73,8 @@ describe("import Semarchy -> OSI", () => {
   });
 });
 
-describe("SemQL enricher <-> computed field", () => {
-  it("import adds a SEMARCHY dialect to the enriched field, keeping ANSI_SQL", () => {
+describe("SemQL enricher handling", () => {
+  it("import drops enrichers: the enriched field stays a plain column", () => {
     const warnings: string[] = [];
     const model = readSemarchyDir(FIXTURE_DIR, warnings);
     const { document } = semarchyToOsi(model, warnings);
@@ -82,33 +82,46 @@ describe("SemQL enricher <-> computed field", () => {
     const fullName = document.semantic_model[0]!.datasets
       .find((d) => d.name === "Customer")!
       .fields!.find((f) => f.name === "fullName")!;
-    const byDialect = Object.fromEntries(
-      fullName.expression.dialects.map((d) => [d.dialect, d.expression]),
-    );
-    expect(byDialect.ANSI_SQL).toBe("FULL_NAME"); // physical column preserved
-    expect(byDialect.SEMARCHY).toBe("UPPER(fullName)"); // SemQL computation
-
-    // The enricher-level condition has no OSI equivalent and is dropped.
-    expect(warnings.some((w) => w.includes("SemQL condition"))).toBe(true);
+    // Only the physical column reference — no SEMARCHY computation is attached,
+    // because in the MDM the value is already materialized in the column.
+    expect(fullName.expression.dialects).toEqual([
+      { dialect: "ANSI_SQL", expression: "FULL_NAME" },
+    ]);
+    expect(warnings.some((w) => w.includes('enricher "CustomerEnricher"'))).toBe(true);
   });
 
-  it("export regenerates a SemQLEnricher from the computed field", () => {
-    const model = readSemarchyDir(FIXTURE_DIR);
-    const { document } = semarchyToOsi(model);
-    const { model: exported } = osiToSemarchy(document.semantic_model[0]!);
+  it("export generates a SemQLEnricher from a SEMARCHY-dialect field", () => {
+    // A hand-authored OSI model carrying a SemQL computation.
+    const { model } = osiToSemarchy({
+      name: "retail",
+      datasets: [
+        {
+          name: "Customer",
+          source: "retail.CUSTOMER",
+          fields: [
+            {
+              name: "fullName",
+              expression: {
+                dialects: [
+                  { dialect: "ANSI_SQL", expression: "FULL_NAME" },
+                  { dialect: "SEMARCHY", expression: "UPPER(fullName)" },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    });
 
-    expect(exported.enrichers).toHaveLength(1);
-    const enricher = exported.enrichers[0]!;
-    expect(enricher.entity).toBe("retail.entities.Customer.Customer");
-    expect(enricher.semQlEnricherExpressions).toEqual([
+    expect(model.enrichers).toHaveLength(1);
+    expect(model.enrichers[0]!.entity).toBe("retail.entities.Customer.Customer");
+    expect(model.enrichers[0]!.semQlEnricherExpressions).toEqual([
       { attributeName: "fullName", expression: "UPPER(fullName)" },
     ]);
-    // The enriched attribute keeps its physical column (not the SemQL).
-    const customer = exported.entities.find((e) => e._name === "Customer")!;
-    expect(customer.attributes.find((a) => a._name === "fullName")!.physicalName).toBe(
-      "FULL_NAME",
-    );
-    expect(validateSemarchy(exported).valid).toBe(true);
+    // The attribute's physical column comes from ANSI_SQL, never the SemQL.
+    const customer = model.entities.find((e) => e._name === "Customer")!;
+    expect(customer.attributes[0]!.physicalName).toBe("FULL_NAME");
+    expect(validateSemarchy(model).valid).toBe(true);
   });
 });
 

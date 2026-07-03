@@ -65,17 +65,21 @@ import {
 | `Entity.primaryKey` | `dataset.primary_key` | |
 | `UniqueKey` | `dataset.unique_keys` | matched by owning entity; composite order preserved |
 | `Reference` | `relationship` | `fromEntity` = many side → `from`; `toEntity` = one side → `to`; FK column from the foreign attribute / role name |
-| `SemQLEnricher` | computed `field` | each `{attributeName, expression}` adds a `SEMARCHY` dialect entry (the SemQL) to the field, keeping its `ANSI_SQL` column reference; enricher `condition` is dropped |
+| `SemQLEnricher` | — (export only) | **Import drops it**: the MDM materializes the computed value in the column, so the field stays a plain column. **Export** turns any `SEMARCHY`-dialect field expression back into a `SemQLEnricher` |
 
 ## Design notes
 
-- **Computed fields / SemQL**: a `SemQLEnricher` expression is carried on the
-  OSI field in the `SEMARCHY` dialect (SemQL is *not* SQL and is not translated),
-  alongside the field's `ANSI_SQL` physical-column reference. On export, fields
-  carrying a `SEMARCHY` expression are grouped back into one `SemQLEnricher` per
-  entity, and the physical column always comes from the `ANSI_SQL` expression
-  (never the SemQL). `SEMARCHY` was added to the core-spec `Dialect` enum for
-  this purpose.
+- **Computed fields / SemQL** (asymmetric by design):
+  - *Import* does **not** carry a `SemQLEnricher` onto the field. An enricher is
+    a data-preparation rule; once it runs, the value is materialized in the
+    column, so a consumer of the model sees a plain column. Enrichers are dropped
+    with a warning and the field keeps only its `ANSI_SQL` column reference.
+  - *Export* still supports the reverse: if an OSI model carries a `SEMARCHY`
+    dialect expression on a field (SemQL is *not* SQL and is never translated),
+    those fields are grouped back into one `SemQLEnricher` per entity. The entity
+    attribute's physical column always comes from the `ANSI_SQL` expression,
+    never the SemQL. `SEMARCHY` was added to the core-spec `Dialect` enum for
+    this purpose.
 - **Validation**: OSI output is validated against `schemas/osi-schema.json`
   (draft 2020-12); each emitted Semarchy object is validated against its
   per-type schema in `schemas/` (draft-07). Best-effort — skipped with a warning
@@ -89,9 +93,8 @@ following are **dropped with a warning**, not preserved in `custom_extensions`:
 
 - **Metrics** — OSI metrics have no Semarchy equivalent (no measure concept), so
   they are dropped on export.
-- **SemQL constructs** — `SemQLEnricher` computed attributes *are* mapped (see
-  Design notes), but the enricher-level `condition`, matchers, and survivorship
-  rules are dropped.
+- **SemQL constructs** — `SemQLEnricher` is import-dropped / export-only (see
+  Design notes); matchers and survivorship rules are dropped.
 - **Type definitions** — `ComplexType`, `UserDefinedType`, `LOVType` are dropped.
 - **Views** — `DatabaseView`, `BusinessView` are dropped.
 - **UI / process objects** — `Form`, `SearchForm`, `Stepper`, `Workflow`,

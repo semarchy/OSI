@@ -20,7 +20,6 @@ import type {
 } from "./osi-types.js";
 import { isTimeDataType } from "./semarchy-types.js";
 import type {
-  SemarchyEnricher,
   SemarchyEntity,
   SemarchyModel,
   SemarchyReference,
@@ -114,52 +113,6 @@ function referenceToRelationship(
   };
 }
 
-/**
- * Apply a SemQL enricher onto the OSI datasets: each `{attributeName,
- * expression}` adds a SEMARCHY dialect entry to the matching field (keeping its
- * ANSI_SQL column reference), turning it into a computed field. If no field
- * matches, a SEMARCHY-only field is created. The enricher-level `condition` has
- * no OSI equivalent and is dropped with a warning.
- */
-function applyEnricher(
-  enricher: SemarchyEnricher,
-  datasetsByName: Map<string, OSIDataset>,
-  warnings: string[],
-): void {
-  const dataset = datasetsByName.get(localName(enricher.entity));
-  if (!dataset) {
-    warnings.push(
-      `[drop] enricher "${enricher._name}": entity "${enricher.entity}" not found`,
-    );
-    return;
-  }
-  if (enricher.condition) {
-    warnings.push(
-      `[drop] enricher "${enricher._name}": SemQL condition has no OSI ` +
-        `equivalent and is dropped`,
-    );
-  }
-  dataset.fields ??= [];
-  for (const { attributeName, expression } of enricher.semQlEnricherExpressions) {
-    const name = localName(attributeName);
-    const semarchy = { dialect: "SEMARCHY" as const, expression };
-    const field = dataset.fields.find((f) => f.name === name);
-    if (field) {
-      // Replace any prior SEMARCHY entry, keep other dialects (e.g. ANSI_SQL).
-      field.expression.dialects = [
-        ...field.expression.dialects.filter((d) => d.dialect !== "SEMARCHY"),
-        semarchy,
-      ];
-    } else {
-      warnings.push(
-        `[warn] enricher "${enricher._name}": attribute "${name}" is not an ` +
-          `entity attribute; creating a computed-only field`,
-      );
-      dataset.fields.push({ name, expression: { dialects: [semarchy] } });
-    }
-  }
-}
-
 /** Convert a grouped Semarchy model into an OSI document. */
 export function semarchyToOsi(
   model: SemarchyModel,
@@ -168,9 +121,16 @@ export function semarchyToOsi(
   const entitiesByName = new Map(model.entities.map((e) => [e._name, e]));
 
   const datasets = model.entities.map((e) => entityToDataset(e, model));
-  const datasetsByName = new Map(datasets.map((d) => [d.name, d]));
+
+  // SemQL enrichers are a data-preparation rule: in the MDM the computed value
+  // is already materialized in the column, so a consumer of the model sees a
+  // plain column. We therefore do NOT turn enrichers into field expressions on
+  // import; they are dropped with a warning.
   for (const enricher of model.enrichers) {
-    applyEnricher(enricher, datasetsByName, warnings);
+    warnings.push(
+      `[drop] enricher "${enricher._name}": the computed value is materialized ` +
+        `in the column; the field stays a plain column reference`,
+    );
   }
 
   const relationships = model.references
