@@ -1,0 +1,26 @@
+_package: retail.entities.SalesOrder
+_type: Entity
+_name: SalesOrder
+label: Sales Order
+pluralLabel: Sales Orders
+physicalTableName: SALES_ORDER
+entityType: BASIC
+historizeGolden: false
+historizeMaster: false
+primaryKey: retail.entities.SalesOrder.SalesOrder.orderId
+attributes:
+  - _type: EntityAttribute
+    _name: orderId
+    label: Order ID
+    physicalName: ORDER_ID
+    dataType: INTEGER
+  - _type: EntityAttribute
+    _name: customerRef
+    label: Customer
+    physicalName: CUSTOMER_ID
+    dataType: INTEGER
+  - _type: EntityAttribute
+    _name: amount
+    label: Amount
+    physicalName: AMOUNT
+    dataType: DECIMAL

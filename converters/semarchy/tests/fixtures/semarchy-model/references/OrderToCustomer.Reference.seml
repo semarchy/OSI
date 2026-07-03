@@ -1,0 +1,22 @@
+_package: retail.references
+_type: Reference
+_name: OrderToCustomer
+label: Order to Customer
+physicalName: ORDER_TO_CUSTOMER
+deletePropagation: RESTRICT
+oneToMany: true
+fromEntity: retail.entities.SalesOrder.SalesOrder
+toEntity: retail.entities.Customer.Customer
+fromRoleLabel: Orders
+fromRoleName: Orders
+fromRolePluralLabel: Orders
+toRoleLabel: Customer
+toRoleName: Customer
+toRolePhysicalName: CUSTOMER_ID
+validationScope: NONE
+foreignAttribute:
+  _type: ForeignAttribute
+  _name: customerRef
+  label: Customer
+  physicalName: CUSTOMER_ID
+  entity: retail.entities.SalesOrder.SalesOrder

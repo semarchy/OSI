@@ -1,0 +1,96 @@
+{
+  "description": "A logical unique key as defined for an entity",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "KeyAttribute": {
+      "description": "A reference to an atomic attribute that is part of the owner key",
+      "additionalProperties": false,
+      "properties": {
+        "attribute": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "attribute"
+      ],
+      "type": "object"
+    },
+    "ValidationScopeType": {
+      "anyOf": [
+        {
+          "description": "Never validate data",
+          "const": "NONE",
+          "type": "string"
+        },
+        {
+          "description": "Validates data after consolidation",
+          "const": "POST_CONSO",
+          "type": "string"
+        },
+        {
+          "description": "Validates source data before consolidation",
+          "const": "PRE_CONSO",
+          "type": "string"
+        },
+        {
+          "description": "Validates data both before and after consolidation",
+          "const": "PRE_POST",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "properties": {
+    "_package": {
+      "type": "string"
+    },
+    "_type": {
+      "const": "UniqueKey",
+      "type": "string"
+    },
+    "entity": {
+      "type": "string"
+    },
+    "_name": {
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z][a-zA-Z_0-9]*$",
+      "type": "string"
+    },
+    "label": {
+      "description": "Label of the object. Used as business-friendly name",
+      "minLength": 1,
+      "type": "string"
+    },
+    "description": {
+      "description": "Description of the object",
+      "type": "string"
+    },
+    "keyAttributes": {
+      "items": {
+        "$ref": "#/definitions/KeyAttribute"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "validationLabel": {
+      "description": "Custom error message displayed when this unique key validation is not met.",
+      "type": "string"
+    },
+    "validationScope": {
+      "description": "Scope for unique key validation.",
+      "$ref": "#/definitions/ValidationScopeType"
+    }
+  },
+  "required": [
+    "_name",
+    "_package",
+    "_type",
+    "entity",
+    "keyAttributes",
+    "label",
+    "validationLabel",
+    "validationScope"
+  ],
+  "type": "object"
+}

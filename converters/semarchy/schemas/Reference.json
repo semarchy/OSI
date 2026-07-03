@@ -1,0 +1,245 @@
+{
+  "description": "A reference is a relationship from an entity to another entity. It translates into a single ER foreign key.",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "DeletePropagationType": {
+      "anyOf": [
+        {
+          "description": "Delete referencing records when referenced record is deleted.",
+          "const": "CASCADE",
+          "type": "string"
+        },
+        {
+          "description": "Set reference to null on the referencing record when referenced record is deleted.",
+          "const": "NULLIFY",
+          "type": "string"
+        },
+        {
+          "description": "Prevent referenced record deletion if a referencing record exists.",
+          "const": "RESTRICT",
+          "type": "string"
+        }
+      ]
+    },
+    "ForeignAttribute": {
+      "description": "A foreign attribute is the attribute that is derived from a reference relationship. Foreign attributes show up as non modifiable attributes in entities inherited from the relationships where they are referred to.",
+      "additionalProperties": false,
+      "properties": {
+        "_type": {
+          "const": "ForeignAttribute",
+          "type": "string"
+        },
+        "entity": {
+          "type": "string"
+        },
+        "_name": {
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z][a-zA-Z_0-9]*$",
+          "type": "string"
+        },
+        "label": {
+          "description": "Label of the object. Used as business-friendly name",
+          "minLength": 1,
+          "type": "string"
+        },
+        "description": {
+          "description": "Description of the object",
+          "type": "string"
+        },
+        "documentation": {
+          "description": "The attribute documentation.",
+          "type": "string"
+        },
+        "physicalName": {
+          "description": "Physical Name of the foreign attribute used when generating the physical database schema",
+          "pattern": "^[A-Z][A-Z_0-9]*$",
+          "type": "string"
+        },
+        "searchable": {
+          "description": "Indicates whether this attribute participates to search.",
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "_name",
+        "_type",
+        "entity",
+        "label",
+        "physicalName"
+      ],
+      "type": "object"
+    },
+    "SplitDuplicatePropagationType": {
+      "anyOf": [
+        {
+          "description": "None",
+          "const": "NONE",
+          "type": "string"
+        },
+        {
+          "description": "Reset Matching",
+          "const": "RESET_MATCHING",
+          "type": "string"
+        }
+      ]
+    },
+    "ValidationScopeType": {
+      "anyOf": [
+        {
+          "description": "Never validate data",
+          "const": "NONE",
+          "type": "string"
+        },
+        {
+          "description": "Validates data after consolidation",
+          "const": "POST_CONSO",
+          "type": "string"
+        },
+        {
+          "description": "Validates source data before consolidation",
+          "const": "PRE_CONSO",
+          "type": "string"
+        },
+        {
+          "description": "Validates data both before and after consolidation",
+          "const": "PRE_POST",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "properties": {
+    "_package": {
+      "type": "string"
+    },
+    "_type": {
+      "const": "Reference",
+      "type": "string"
+    },
+    "_name": {
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z][a-zA-Z_0-9]*$",
+      "type": "string"
+    },
+    "label": {
+      "description": "Label of the object. Used as business-friendly name",
+      "minLength": 1,
+      "type": "string"
+    },
+    "description": {
+      "description": "Description of the object",
+      "type": "string"
+    },
+    "documentation": {
+      "description": "Documentation displayed in the documentation panel. Markdown syntax is supported.",
+      "type": "string"
+    },
+    "brokenValidationLabel": {
+      "description": "Custom error message displayed for a broken reference",
+      "type": "string"
+    },
+    "deletePropagation": {
+      "description": "Defines how delete propagates through this reference",
+      "$ref": "#/definitions/DeletePropagationType"
+    },
+    "foreignAttribute": {
+      "$ref": "#/definitions/ForeignAttribute"
+    },
+    "fromEntity": {
+      "type": "string"
+    },
+    "fromNavigable": {
+      "description": "Indicates whether this participant association end is navigable from the one side to the many side. By default, it is.",
+      "default": true,
+      "type": "boolean"
+    },
+    "fromRoleDocumentation": {
+      "description": "Documentation of the many side displayed in the documentation panel. Markdown syntax is supported.",
+      "type": "string"
+    },
+    "fromRoleLabel": {
+      "description": "Label of the many side",
+      "minLength": 1,
+      "type": "string"
+    },
+    "fromRoleName": {
+      "description": "Name of the many side",
+      "type": "string"
+    },
+    "fromRolePluralLabel": {
+      "description": "Plural label of the many side",
+      "minLength": 1,
+      "type": "string"
+    },
+    "mandatoryValidationLabel": {
+      "description": "Custom error message displayed when a mandatory reference is empty.",
+      "type": "string"
+    },
+    "oneToMany": {
+      "description": "Indicates whether current reference is a mandatory Many to 1 or an optional Many to 0.",
+      "default": false,
+      "type": "boolean"
+    },
+    "physicalName": {
+      "description": "Physical Name for the reference (used to create indexes)",
+      "pattern": "^[A-Z][A-Z_0-9]*$",
+      "type": "string"
+    },
+    "splitDuplicatePropagation": {
+      "description": "Defines how a parent record split propagates to child records.",
+      "$ref": "#/definitions/SplitDuplicatePropagationType"
+    },
+    "toEntity": {
+      "type": "string"
+    },
+    "toNavigable": {
+      "description": "Indicates whether this participant association end is navigable from the many side to the one side. By default, it is.",
+      "default": true,
+      "type": "boolean"
+    },
+    "toRoleDocumentation": {
+      "description": "Documentation of the one side displayed in the documentation panel. Markdown syntax is supported.",
+      "type": "string"
+    },
+    "toRoleLabel": {
+      "description": "Label of the one side",
+      "minLength": 1,
+      "type": "string"
+    },
+    "toRoleName": {
+      "description": "Name of the one side. Used to set the name of the foreign attribute.",
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z][a-zA-Z_0-9]*$",
+      "type": "string"
+    },
+    "toRolePhysicalName": {
+      "description": "A physical name for the referenced column foreign key",
+      "pattern": "^[A-Z][A-Z_0-9]*$",
+      "type": "string"
+    },
+    "validationScope": {
+      "description": "Scope for reference validation.",
+      "$ref": "#/definitions/ValidationScopeType"
+    }
+  },
+  "required": [
+    "_name",
+    "_package",
+    "_type",
+    "deletePropagation",
+    "fromEntity",
+    "fromRoleLabel",
+    "fromRoleName",
+    "fromRolePluralLabel",
+    "label",
+    "physicalName",
+    "toEntity",
+    "toRoleLabel",
+    "toRoleName",
+    "toRolePhysicalName",
+    "validationScope"
+  ],
+  "type": "object"
+}

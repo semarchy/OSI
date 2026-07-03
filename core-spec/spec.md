@@ -38,6 +38,7 @@ Supported SQL and expression language dialects for metrics and field definitions
 | `TABLEAU` | Tableau calculations |
 | `DATABRICKS` | Databricks SQL |
 | `MAQL` | GoodData MAQL (Metric Analysis and Query Language) |
+| `SEMARCHY` | Semarchy semantic model expression language |
 
 ## Semantic Model
 

@@ -1,0 +1,5 @@
+# A non-semantic (UI) object nested under an entity: dropped with a warning.
+_type: Form
+_package: retail.entities.Customer
+_name: CustomerForm
+label: Customer Form

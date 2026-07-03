@@ -1,0 +1,10 @@
+_package: retail.entities.Customer
+_type: SemQLEnricher
+_name: CustomerEnricher
+label: Customer enricher
+entity: retail.entities.Customer.Customer
+enricherExecutionScope: PRE_CONSO
+condition: fullName IS NOT NULL
+semQlEnricherExpressions:
+  - attributeName: fullName
+    expression: UPPER(fullName)

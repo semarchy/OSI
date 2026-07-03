@@ -1,0 +1,114 @@
+{
+  "description": "SemQL based enricher",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "EnricherScope": {
+      "anyOf": [
+        {
+          "description": "Never enrich data in integration jobs",
+          "const": "NONE",
+          "type": "string"
+        },
+        {
+          "description": "Enrich data after consolidation",
+          "const": "POST_CONSO",
+          "type": "string"
+        },
+        {
+          "description": "Enrich source data before consolidation",
+          "const": "PRE_CONSO",
+          "type": "string"
+        },
+        {
+          "description": "Enrich data both before and after consolidation",
+          "const": "PRE_POST",
+          "type": "string"
+        }
+      ]
+    },
+    "SemQLEnricherExpression": {
+      "description": "The expression used to compute the new value of an attribute in SemQL enricher",
+      "additionalProperties": false,
+      "properties": {
+        "attributeName": {
+          "description": "Name of the attribute that will take the value of the expression",
+          "type": "string"
+        },
+        "expression": {
+          "description": "Expression to map to the attribute",
+          "type": "string"
+        }
+      },
+      "required": [
+        "attributeName",
+        "expression"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "_package": {
+      "type": "string"
+    },
+    "_type": {
+      "const": "SemQLEnricher",
+      "type": "string"
+    },
+    "entity": {
+      "type": "string"
+    },
+    "_name": {
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z][a-zA-Z_0-9]*$",
+      "type": "string"
+    },
+    "label": {
+      "description": "Label of the object. Used as business-friendly name",
+      "minLength": 1,
+      "type": "string"
+    },
+    "description": {
+      "description": "Description of the object",
+      "type": "string"
+    },
+    "afterEnrichers": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ]
+    },
+    "condition": {
+      "description": "Optional SemQL filter to restrict the set of enriched records",
+      "type": "string"
+    },
+    "enricherExecutionScope": {
+      "description": "Execution scope of this enricher in data certification jobs",
+      "$ref": "#/definitions/EnricherScope"
+    },
+    "semQlEnricherExpressions": {
+      "items": {
+        "$ref": "#/definitions/SemQLEnricherExpression"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "_name",
+    "_package",
+    "_type",
+    "enricherExecutionScope",
+    "entity",
+    "label",
+    "semQlEnricherExpressions"
+  ],
+  "type": "object"
+}

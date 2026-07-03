@@ -1,0 +1,9 @@
+_package: retail.entities.Customer
+_type: UniqueKey
+_name: CustomerNaturalKey
+label: Customer natural key
+entity: retail.entities.Customer.Customer
+validationLabel: Customer natural key must be unique
+validationScope: NONE
+keyAttributes:
+  - attribute: retail.entities.Customer.Customer.fullName
