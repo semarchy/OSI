@@ -1,21 +1,21 @@
 # osi-semarchy
 
 Bidirectional converter between [OSI](../../core-spec/spec.md) and the **Semarchy**
-semantic model.
+xDM semantic model.
 
 - **Export** — OSI → Semarchy (`osi-to-semarchy`)
 - **Import** — Semarchy → OSI (`semarchy-to-osi`)
 
 Unlike the other reference converters (Python / Java), this one is written in
-**TypeScript** (Node ≥ 18, ESM). It is offline: it only reads and writes files.
+**TypeScript** (Node ≥ 18, ESM). It is fully offline: it only reads and writes
+files.
 
-## Status
+## Model shape
 
-> ⚠️ **Scaffold — mapping incomplete.** The project structure, CLI, OSI types,
-> the dialect-fallback chain, and schema-validation plumbing are in place and
-> tested. The per-construct mapping is stubbed pending the **Semarchy semantic
-> model JSON Schema** (see [`schemas/README.md`](schemas/README.md)). Every
-> incomplete step is marked `TODO(schema)` in the source.
+A Semarchy model is a **directory of YAML files**, each file one
+`_type`-discriminated object (`Entity`, `Reference`, `UniqueKey`, …). The OSI
+side is a single YAML document. So export writes a directory, and import reads
+one.
 
 ## Install & build
 
@@ -27,39 +27,69 @@ npm test             # vitest
 npm run typecheck
 ```
 
+Requires Node ≥ 18 (declared in `engines`).
+
 ## CLI
 
 ```bash
-# OSI (YAML) -> Semarchy (JSON)
-osi-semarchy osi-to-semarchy -i model.yaml -o model.semarchy.json
+# OSI (YAML file) -> Semarchy (directory of YAML)
+osi-semarchy osi-to-semarchy -i model.yaml -o semarchy-dir/
 
-# Semarchy (JSON) -> OSI (YAML)
-osi-semarchy semarchy-to-osi -i model.semarchy.json -o model.yaml
+# Semarchy (directory of YAML) -> OSI (YAML file)
+osi-semarchy semarchy-to-osi -i semarchy-dir/ -o model.yaml
 ```
 
 ## Library
 
 ```ts
-import { osiDocumentToSemarchy, semarchyToOsi } from "osi-semarchy";
+import {
+  osiDocumentToSemarchy,
+  semarchyToOsi,
+  readSemarchyDir,
+  writeSemarchyDir,
+} from "osi-semarchy";
 ```
+
+## Mapping
+
+| Semarchy | OSI | Notes |
+|----------|-----|-------|
+| `Entity` | `dataset` | `source` = `<_package>.<physicalTableName>` |
+| `EntityAttribute` | `field` | field `name` = attribute `_name`; `ANSI_SQL` expression = `physicalName`; `Date`/`Timestamp` → `dimension.is_time` |
+| `Entity.primaryKey` | `dataset.primary_key` | |
+| `UniqueKey` | `dataset.unique_keys` | matched by owning entity; composite order preserved |
+| `Reference` | `relationship` | `fromEntity` = many side → `from`; `toEntity` = one side → `to`; FK column from the foreign attribute / role name |
 
 ## Design notes
 
 - **Dialect selection** uses the OSI fallback chain: prefer the `SEMARCHY`
-  dialect, fall back to `ANSI_SQL`, warn (or error) if neither is present. See
-  `src/dialect.ts`. `SEMARCHY` was added to the core-spec `Dialect` enum for
-  this converter.
-- **Vendor name** for custom extensions is `SEMARCHY`. Extensions for *other*
-  vendors are never discarded on import — they roundtrip untouched.
-- **Roundtrip fidelity**: anything with no OSI core equivalent is preserved in
-  `custom_extensions` (`vendor_name: "SEMARCHY"`); `ai_context` a target can't
-  represent goes into a `COMMON` extension.
-- **Validation**: OSI output is checked against `schemas/osi-schema.json` and
-  Semarchy output against `schemas/semarchy-semantic-model-schema.json` when
-  those files are present (best-effort; skipped with a warning otherwise).
+  dialect, fall back to `ANSI_SQL`, warn if neither is present. `SEMARCHY` was
+  added to the core-spec `Dialect` enum for this converter; it is reserved for a
+  future SemQL mapping (see limitations).
+- **Validation**: OSI output is validated against `schemas/osi-schema.json`
+  (draft 2020-12); each emitted Semarchy object is validated against its
+  per-type schema in `schemas/` (draft-07). Best-effort — skipped with a warning
+  if a schema file is absent.
 
 ## Limitations
 
-- Mapping is not yet implemented (see **Status**); requires the Semarchy schema.
-- Metrics using dialect-specific SQL absent from both `SEMARCHY` and `ANSI_SQL`
-  are skipped with a warning rather than emitted.
+This converter maps the **core ER model only**. By design (Semarchy is an MDM
+platform, not an analytics semantic layer), the roundtrip is **lossy** — the
+following are **dropped with a warning**, not preserved in `custom_extensions`:
+
+- **Metrics** — OSI metrics have no Semarchy equivalent (no measure concept), so
+  they are dropped on export.
+- **SemQL constructs** — `SemQLEnricher` (computed attributes), matchers, and
+  survivorship rules are not mapped. Consequently, imported field expressions
+  are plain `ANSI_SQL` column references; the `SEMARCHY` dialect is registered
+  but not yet emitted.
+- **Type definitions** — `ComplexType`, `UserDefinedType`, `LOVType` are dropped.
+- **Views** — `DatabaseView`, `BusinessView` are dropped.
+- **UI / process objects** — `Form`, `SearchForm`, `Stepper`, `Workflow`,
+  `DisplayCard`, `CollectionView`, `ActionSet`, `ModelDiagram`, `Application`,
+  and other MDM-operational objects are dropped.
+- **Composite keys**: Semarchy entities use a single primary-key attribute and
+  references model a single foreign key, so composite OSI primary keys / join
+  keys are flattened to their first column on export (warned).
+- On export, several required Semarchy fields OSI does not carry (physical
+  names, labels, `entityType`, historization flags) are filled with defaults.

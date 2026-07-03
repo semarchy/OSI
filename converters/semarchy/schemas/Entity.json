@@ -1,0 +1,535 @@
+{
+  "description": "Logical entity as defined by the ER modeling standards",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "BuiltInType": {
+      "enum": [
+        "Binary",
+        "Boolean",
+        "ByteInteger",
+        "Date",
+        "Decimal",
+        "Integer",
+        "LongInteger",
+        "LongText",
+        "ShortInteger",
+        "String",
+        "Timestamp",
+        "UUID"
+      ],
+      "type": "string"
+    },
+    "EntityAttribute": {
+      "description": "Describes any attribute that ends up stored in a database column.",
+      "additionalProperties": false,
+      "properties": {
+        "_type": {
+          "const": "EntityAttribute",
+          "type": "string"
+        },
+        "_name": {
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z][a-zA-Z_0-9]*$",
+          "type": "string"
+        },
+        "label": {
+          "description": "Label of the object. Used as business-friendly name",
+          "minLength": 1,
+          "type": "string"
+        },
+        "description": {
+          "description": "Description of the object",
+          "type": "string"
+        },
+        "documentation": {
+          "description": "The attribute documentation.",
+          "type": "string"
+        },
+        "dataType": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BuiltInType"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": "String"
+        },
+        "goldenAttribute": {
+          "description": "Defines whether attribute makes sense as a golden attribute. Useful to remove useless technical attributes used for matching for example",
+          "default": true,
+          "type": "boolean"
+        },
+        "i18ned": {
+          "description": "Indicates whether this attribute is internationalized (translated).",
+          "default": false,
+          "type": "boolean"
+        },
+        "length": {
+          "description": "Length of atomic attribute",
+          "default": 128,
+          "type": "number"
+        },
+        "lovValidationScope": {
+          "description": "Scope for value in List of Value validation.",
+          "$ref": "#/definitions/ValidationScopeType"
+        },
+        "mandatory": {
+          "description": "Indicates whether this attribute is mandatory.",
+          "default": false,
+          "type": "boolean"
+        },
+        "mandatoryValidationLabel": {
+          "description": "Custom error message displayed when a mandatory attribute is left empty.",
+          "type": "string"
+        },
+        "mandatoryValidationScope": {
+          "description": "Scope for mandatory value validation.",
+          "$ref": "#/definitions/ValidationScopeType"
+        },
+        "multiValued": {
+          "description": "Indicates whether this attribute is a comma-separated list of LOV values",
+          "default": false,
+          "type": "boolean"
+        },
+        "physicalName": {
+          "description": "Physical Name bound to this entity attribute, it is used as a base name when generating the physical database schema",
+          "pattern": "^[A-Z][A-Z_0-9]*$",
+          "type": "string"
+        },
+        "precision": {
+          "description": "Precision of atomic attribute",
+          "type": "number"
+        },
+        "scale": {
+          "description": "Scale of atomic attribute",
+          "type": "number"
+        },
+        "searchable": {
+          "description": "Indicates whether this attribute participates to search.",
+          "default": true,
+          "type": "boolean"
+        },
+        "valueSeparator": {
+          "description": "Specifies the value separator to use",
+          "type": "string"
+        }
+      },
+      "required": [
+        "_name",
+        "_type",
+        "dataType",
+        "label",
+        "physicalName"
+      ],
+      "type": "object"
+    },
+    "EntityType": {
+      "anyOf": [
+        {
+          "description": "Basic entities do not have matching or consolidation capabilities",
+          "const": "BASIC",
+          "type": "string"
+        },
+        {
+          "description": "Records in entities using Fuzzy Matching are matched using a SemQL expression defined in a matcher. \\n(Fuzzy Matching was formerly known as SDPK)",
+          "const": "FUZZY_MATCHED",
+          "type": "string"
+        },
+        {
+          "description": "Records in entities using ID Matching are matched if they have the same IDs. \\nThis matching  behavior is well suited when there is a true unique identifier for all the applications communicating with the MDM hub and for simple Data Entry use cases. \\n(ID Matching was formerly known as UDPK)",
+          "const": "ID_MATCHED",
+          "type": "string"
+        }
+      ]
+    },
+    "GoldenIdGeneration": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "anyOf": [
+            {
+              "description": "IDs are automatically generated using a database sequence",
+              "const": "SEQUENCE",
+              "type": "string"
+            },
+            {
+              "description": "IDs are automatically created using a UUID generator",
+              "const": "UUID",
+              "type": "string"
+            }
+          ]
+        },
+        "startWith": {
+          "description": "Starts With Value when using Sequence for GoldenID Generation.",
+          "maximum": 2147483647,
+          "minimum": 1,
+          "type": "number"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "type": "object"
+    },
+    "IdGenerationType": {
+      "anyOf": [
+        {
+          "description": "IDs are manually entered by the user",
+          "const": "MANUAL",
+          "type": "string"
+        },
+        {
+          "description": "IDs are automatically generated using a Semql expression",
+          "const": "SEMQL",
+          "type": "string"
+        },
+        {
+          "description": "IDs are automatically generated using a database sequence",
+          "const": "SEQUENCE",
+          "type": "string"
+        },
+        {
+          "description": "IDs are automatically created using a UUID generator",
+          "const": "UUID",
+          "type": "string"
+        }
+      ]
+    },
+    "SemQLMatcher": {
+      "description": "SemQL based matcher",
+      "additionalProperties": false,
+      "properties": {
+        "_type": {
+          "const": "SemQLMatcher",
+          "type": "string"
+        },
+        "_name": {
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z][a-zA-Z_0-9]*$",
+          "type": "string"
+        },
+        "description": {
+          "description": "Description of the object",
+          "type": "string"
+        },
+        "autoConfirmGoldenThreshold": {
+          "description": "With a confidence score strictly greater than this value, the matcher will confirm non-singleton golden records.",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "number"
+        },
+        "autoConfirmSingletons": {
+          "description": "Select this option to automatically confirm golden records composed of a single master record",
+          "default": false,
+          "type": "boolean"
+        },
+        "matchRules": {
+          "items": {
+            "$ref": "#/definitions/SemQLMatchRule"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "mergeThresholdMergingConfirmed": {
+          "description": "With a confidence score strictly greater than this value, the matcher will merge confirmed golden records.",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "number"
+        },
+        "mergeThresholdMergingConfirmedWithNewMasters": {
+          "description": "With a confidence score strictly greater than this value, the matcher will add new master records to a confirmed golden record.",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "number"
+        },
+        "mergeThresholdMergingConfirmedWithUnconfirmed": {
+          "description": "With a confidence score strictly greater than this value, the matcher will merge unconfirmed with confirmed golden records.",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "number"
+        },
+        "mergeThresholdMergingUnconfirmed": {
+          "description": "With a confidence score strictly greater than this value, the matcher will merge unconfirmed golden records.",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "number"
+        },
+        "mergeThresholdMergingUnconfirmedWithNewMasters": {
+          "description": "With a confidence score strictly greater than this value, the matcher will add new master records to an unconfirmed golden record.",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "number"
+        },
+        "mergeThresholdNewGroup": {
+          "description": "With a confidence score strictly greater than this value, the matcher will create a golden record from new master records.",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "number"
+        },
+        "mergeThresholdRemergingPreviouslySplit": {
+          "description": "With a confidence score strictly greater than this value, the matcher will merge confirmed golden records previously split by the user.",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "number"
+        },
+        "useMultiIterationGrouping": {
+          "description": "Grouping will run one Iteration per Match Score",
+          "default": true,
+          "type": "boolean"
+        },
+        "useTransitiveMatchScore": {
+          "description": "Use Transitive Match Score while computing Confidence Score",
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "_name",
+        "_type",
+        "autoConfirmGoldenThreshold",
+        "autoConfirmSingletons",
+        "matchRules",
+        "mergeThresholdMergingConfirmed",
+        "mergeThresholdMergingConfirmedWithNewMasters",
+        "mergeThresholdMergingConfirmedWithUnconfirmed",
+        "mergeThresholdMergingUnconfirmed",
+        "mergeThresholdMergingUnconfirmedWithNewMasters",
+        "mergeThresholdNewGroup",
+        "mergeThresholdRemergingPreviouslySplit",
+        "useMultiIterationGrouping",
+        "useTransitiveMatchScore"
+      ],
+      "type": "object"
+    },
+    "SemQLMatchRuleBinningExpression": {
+      "description": "Defines a matchrule binning",
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "description": "Binning expression used to reduce the data set into reasonable buckets before execution of the match process",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expression"
+      ],
+      "type": "object"
+    },
+    "SemQLMatchRule": {
+      "description": "Defines of a match rule",
+      "additionalProperties": false,
+      "properties": {
+        "_type": {
+          "const": "SemQLMatchRule",
+          "type": "string"
+        },
+        "_name": {
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z][a-zA-Z_0-9]*$",
+          "type": "string"
+        },
+        "label": {
+          "description": "Label of the object. Used as business-friendly name",
+          "minLength": 1,
+          "type": "string"
+        },
+        "description": {
+          "description": "Description of the object",
+          "type": "string"
+        },
+        "documentation": {
+          "description": "Documentation displayed in the documentation panel. Markdown syntax is supported.",
+          "type": "string"
+        },
+        "binningExpressions": {
+          "items": {
+            "$ref": "#/definitions/SemQLMatchRuleBinningExpression"
+          },
+          "type": "array"
+        },
+        "color": {
+          "description": "Color used in the explain record and duplicates management graph edges representing matches between two records",
+          "type": "string"
+        },
+        "condition": {
+          "description": "SemQL Condition for matching. When true, the two records are considered as matching with the match score.",
+          "type": "string"
+        },
+        "matchOnExpression": {
+          "description": "Expression returning the child records used for matching.",
+          "type": "string"
+        },
+        "matchScore": {
+          "description": "Match Score for two records matching according to this match rule.",
+          "type": "number"
+        },
+        "usingMatchOn": {
+          "description": "Match using child records of the current entity records.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "_name",
+        "_type",
+        "condition",
+        "label",
+        "matchScore"
+      ],
+      "type": "object"
+    },
+    "SourceIdGeneration": {
+      "additionalProperties": false,
+      "properties": {
+        "idExpression": {
+          "description": "SemqlExpression used to compute the id when Semql Id Generation is used",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/definitions/IdGenerationType"
+        },
+        "startWith": {
+          "description": "Starts With Value when using Sequence for SourceID Generation.",
+          "maximum": 2147483647,
+          "minimum": 1,
+          "type": "number"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "type": "object"
+    },
+    "ValidationScopeType": {
+      "anyOf": [
+        {
+          "description": "Never validate data",
+          "const": "NONE",
+          "type": "string"
+        },
+        {
+          "description": "Validates data after consolidation",
+          "const": "POST_CONSO",
+          "type": "string"
+        },
+        {
+          "description": "Validates source data before consolidation",
+          "const": "PRE_CONSO",
+          "type": "string"
+        },
+        {
+          "description": "Validates data both before and after consolidation",
+          "const": "PRE_POST",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "properties": {
+    "_package": {
+      "type": "string"
+    },
+    "_type": {
+      "const": "Entity",
+      "type": "string"
+    },
+    "_name": {
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z][a-zA-Z_0-9]*$",
+      "type": "string"
+    },
+    "label": {
+      "description": "Label of the object. Used as business-friendly name",
+      "minLength": 1,
+      "type": "string"
+    },
+    "description": {
+      "description": "Description of the object",
+      "type": "string"
+    },
+    "documentation": {
+      "description": "Entity documentation displayed in the documentation panel. Markdown syntax is supported.",
+      "type": "string"
+    },
+    "attributes": {
+      "items": {
+        "$ref": "#/definitions/EntityAttribute"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "dataEntryAllowed": {
+      "description": "Defines whether entity supports creating  and editing \"Non Consolidated Golden\" records authored directly in MDM",
+      "default": true,
+      "type": "boolean"
+    },
+    "enableDelete": {
+      "description": "Indicates whether delete is enabled for this entity",
+      "default": true,
+      "type": "boolean"
+    },
+    "entityType": {
+      "description": "Defines the type of entity and the technique used for matching records in this entity.",
+      "$ref": "#/definitions/EntityType",
+      "default": "BASIC"
+    },
+    "goldenIdGeneration": {
+      "description": "Defines how golden record primary keys are generated for fuzzy matched entities.",
+      "$ref": "#/definitions/GoldenIdGeneration"
+    },
+    "historizeGolden": {
+      "description": "Select this option to automatically historize changes made on the golden records for this entity. This history is retained according to the entity''s retention policy.",
+      "default": false,
+      "type": "boolean"
+    },
+    "historizeMaster": {
+      "description": "Select this option to automatically historize changes made on the master records for this entity. This history is retained according to the entity''s retention policy.",
+      "default": false,
+      "type": "boolean"
+    },
+    "iconUrl": {
+      "description": "Default Icon representing the records of the entity",
+      "type": "string"
+    },
+    "matcher": {
+      "$ref": "#/definitions/SemQLMatcher"
+    },
+    "parentEntity": {
+      "type": "string"
+    },
+    "physicalTableName": {
+      "description": "Physical Table Name used as a unique name to generate tables for base entities",
+      "pattern": "^[A-Z][A-Z_0-9]*$",
+      "type": "string"
+    },
+    "pluralLabel": {
+      "description": "Plural label of the object. Used to distinguish between singular and plural instances of this object",
+      "minLength": 1,
+      "type": "string"
+    },
+    "primaryKey": {
+      "description": "An optional reference to an attribute that is the primary key, required unless the entity extends from another one.",
+      "type": "string"
+    },
+    "sourceIdGeneration": {
+      "description": "Defines how records ID are generated in Data Entry workflows and integration APIs.",
+      "$ref": "#/definitions/SourceIdGeneration"
+    }
+  },
+  "required": [
+    "_name",
+    "_package",
+    "_type",
+    "attributes",
+    "entityType",
+    "historizeGolden",
+    "historizeMaster",
+    "label",
+    "physicalTableName",
+    "pluralLabel"
+  ],
+  "type": "object"
+}

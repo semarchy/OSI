@@ -1,0 +1,5 @@
+# A non-semantic (UI) object: must be dropped with a warning on import.
+_type: Form
+_package: retail
+_name: CustomerForm
+label: Customer Form
