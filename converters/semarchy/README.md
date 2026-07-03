@@ -12,10 +12,13 @@ files.
 
 ## Model shape
 
-A Semarchy model is a **directory of YAML files**, each file one
-`_type`-discriminated object (`Entity`, `Reference`, `UniqueKey`, …). The OSI
-side is a single YAML document. So export writes a directory, and import reads
-one.
+A Semarchy model is a **nested directory tree of `.seml` (YAML) files**, each
+file one `_type`-discriminated object (entities under `entities/<Name>/`,
+references under `references/`, …), plus a root `Model` object. Import walks the
+tree recursively (accepting `.seml`, `.yaml`, `.yml`), takes the model name from
+the `Model` object, and resolves the fully-qualified references Semarchy uses
+(`Pkg.entities.Item.Item.UPC`) down to local names. The OSI side is a single
+YAML document. Export writes a flat directory of `<Name>.<Type>.seml` files.
 
 ## Install & build
 
@@ -32,11 +35,11 @@ Requires Node ≥ 18 (declared in `engines`).
 ## CLI
 
 ```bash
-# OSI (YAML file) -> Semarchy (directory of YAML)
+# OSI (YAML file) -> Semarchy (directory of .seml)
 osi-semarchy osi-to-semarchy -i model.yaml -o semarchy-dir/
 
-# Semarchy (directory of YAML) -> OSI (YAML file)
-osi-semarchy semarchy-to-osi -i semarchy-dir/ -o model.yaml
+# Semarchy (directory tree of .seml) -> OSI (YAML file)
+osi-semarchy semarchy-to-osi -i semarchy-model-src/ -o model.yaml
 ```
 
 ## Library
